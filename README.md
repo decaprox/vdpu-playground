@@ -53,7 +53,7 @@ sudo apt install -y \
 make all
 ```
 
-Or you can run targets separately, eg:
+Or you can run targets separately, e.g.:
 
 ```sh
 make prepare
@@ -61,7 +61,7 @@ make firmware
 make tests
 ```
 
-Or choose anothe target
+Or choose another target
 
 ```
 Usage: make <target>
