@@ -1,0 +1,6 @@
+[submodule "qemu-vdpu"]
+	path = qemu-vdpu
+	url = git@github.com:decaprox/qemu-vdpu.git
+[submodule "vdpu-firmware"]
+	path = vdpu-firmware
+	url = git@github.com:decaprox/vdpu-firmware.git
