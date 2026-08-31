@@ -112,7 +112,7 @@ prepare: venv zephyr sdk qemu-configure qemu-build-install
 firmware: ## west build -b $(BOARD) -p always (pristine build)
 	source $(VENV)/bin/activate &&
 		cd $(ZEPHYR_WORKSPACE) &&
-		west build -b $(BOARD) -d $(APP_BUILD_DIR) $(APP) -p always
+		west build -b $(BOARD) -d $(APP_BUILD_DIR) $(APP) -p always -- -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
 test: ## cd tests && pytest
 	cd tests &&

@@ -119,6 +119,142 @@ class Shell(SocketHelper):
     def close(self):
         self.sock_file.close()
 
+class LogAssertionError(AssertionError):
+    """A log pattern was not found (or unexpectedly found) within the given window."""
+    pass
+
+
+class LogLine:
+    __slots__ = ("raw", "level", "module", "message", "device_ts", "host_ts")
+
+    _LINE_RE = re.compile(
+        r"^\[(?P<ts>\d+:\d{2}:\d{2}\.\d{3},\d{3})\]\s+"
+        r"<(?P<level>err|wrn|inf|dbg)>\s+"
+        r"(?P<module>[\w_]+):\s*"
+        r"(?P<message>.*)$"
+    )
+
+    def __init__(self, raw: str, host_ts: float):
+        self.raw = raw
+        self.host_ts = host_ts
+        m = self._LINE_RE.match(raw)
+        if m:
+            self.level = m.group("level")
+            self.module = m.group("module")
+            self.message = m.group("message")
+            self.device_ts = self._parse_device_ts(m.group("ts"))
+        else:
+            self.level = None
+            self.module = None
+            self.message = raw
+            self.device_ts = None
+
+    @staticmethod
+    def _parse_device_ts(ts: str) -> float:
+        ts = ts.split(",")[0]
+        h, m, rest = ts.split(":")
+        s, ms = rest.split(".")
+        return int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000
+
+    def __repr__(self):
+        return f"LogLine({self.raw!r})"
+
+
+class Log(SocketHelper):
+    _LEVEL_RANK = {"dbg": 0, "inf": 1, "wrn": 2, "err": 3}
+
+    def __init__(self, host: str, port: int):
+        self._wait_for_port(host, port)
+        self.sock = socket.create_connection((host, port))
+        self.sock.setblocking(False)
+        self._buf = ""
+        self.lines: list[LogLine] = []
+
+    def _drain(self):
+        """Non-blocking read of whatever the kernel socket buffer currently
+        holds, split into complete lines and appended to self.lines.
+        Call this explicitly before inspecting lines — nothing reads the
+        socket in the background."""
+        while True:
+            try:
+                chunk = self.sock.recv(65536)
+            except BlockingIOError:
+                break
+            except OSError:
+                break
+            if not chunk:
+                break  # peer closed
+            self._buf += chunk.decode("utf-8", errors="replace")
+
+        if "\n" in self._buf:
+            *complete, self._buf = self._buf.split("\n")
+            now = time.monotonic()
+            for raw in complete:
+                raw = raw.rstrip("\r")
+                if raw:
+                    self.lines.append(LogLine(raw, now))
+
+    def clear(self):
+        """Drop everything accumulated so far. Call at the start of a test
+        (or before a specific action) so later wait_for/assert_absent calls
+        can't match stale lines from boot or a previous command."""
+        self._drain()
+        self.lines.clear()
+
+    def wait_for(
+        self,
+        pattern: str,
+        *,
+        min_level: str | None = None,
+        timeout: float = 5.0,
+    ) -> LogLine:
+        """Poll (drain + scan) until a line's message matches `pattern`
+        (regex, re.search) at or above `min_level`. Raises LogAssertionError
+        on timeout."""
+        rx = re.compile(pattern)
+        min_rank = self._LEVEL_RANK.get(min_level, -1) if min_level else -1
+        seen = 0
+        deadline = time.monotonic() + timeout
+
+        while True:
+            self._drain()
+            for line in self.lines[seen:]:
+                seen += 1
+                if min_level and (line.level is None or self._LEVEL_RANK.get(line.level, -1) < min_rank):
+                    continue
+                if rx.search(line.message):
+                    return line
+            if time.monotonic() >= deadline:
+                raise LogAssertionError(
+                    f"pattern {pattern!r} (min_level={min_level}) not seen within {timeout}s; "
+                    f"{len(self.lines)} lines captured"
+                )
+            time.sleep(0.05)
+
+    def assert_absent(self, pattern: str, *, window: float):
+        """Drain for `window` seconds; raise LogAssertionError if any line's
+        message matches `pattern` during that time. For negative-control
+        tests (e.g. asserting no ASSERTION FAIL / no unexpected wfi exit)."""
+        rx = re.compile(pattern)
+        seen = 0
+        deadline = time.monotonic() + window
+
+        while time.monotonic() < deadline:
+            self._drain()
+            for line in self.lines[seen:]:
+                seen += 1
+                if rx.search(line.message):
+                    raise LogAssertionError(f"pattern {pattern!r} unexpectedly matched: {line.raw!r}")
+            time.sleep(0.05)
+        self._drain()
+        for line in self.lines[seen:]:
+            if rx.search(line.message):
+                raise LogAssertionError(f"pattern {pattern!r} unexpectedly matched: {line.raw!r}")
+
+    def close(self):
+        self.sock.close()
+
+
 class GdbRemoteError(RuntimeError):
     """GDB remote returned an error reply (E<code>) or a malformed packet."""
     pass
@@ -276,6 +412,8 @@ class Qemu:
     SHELL_PORT = 3333
     GDB_HOST = "127.0.0.1"
     GDB_PORT = 5555
+    LOG_HOST = "127.0.0.1"
+    LOG_PORT = 3334
     FIRMWARE = "../build/app-build/zephyr/zephyr.elf"
     QEMU_BIN = "../environment/qemu-vdpu/bin/qemu-system-aarch64"
 
@@ -284,6 +422,7 @@ class Qemu:
         self.qmp = None
         self.shell = None
         self.gdb = None
+        self.log = None
 
     def start(self, load_kernel: bool = True):
         cmd = [
@@ -294,6 +433,8 @@ class Qemu:
             "-net", "none",
             "-chardev", f"socket,id=shell0,host=0.0.0.0,port={self.SHELL_PORT},server=on,wait=off",
             "-serial", "chardev:shell0",
+            "-chardev", f"socket,id=log0,host=0.0.0.0,port={self.LOG_PORT},server=on,wait=off",
+            "-serial", "chardev:log0",
             "-chardev", f"socket,id=qmp0,host=0.0.0.0,port={self.QMP_PORT},server=on,wait=off",
             "-object", "monitor-qmp,chardev=qmp0,id=qmp-mon",
             "-gdb", f"tcp::{self.GDB_PORT},server=on,wait=off",
@@ -314,6 +455,7 @@ class Qemu:
             self.gdb = GdbRemote(self.GDB_HOST, self.GDB_PORT)
             self.qmp = Qmp(self.QMP_HOST, self.QMP_PORT)
             self.shell = Shell(self.SHELL_HOST, self.SHELL_PORT)
+            self.log = Log(self.LOG_HOST, self.LOG_PORT)
         except (TimeoutError, ConnectionError, OSError):
             self._kill_proc()
             raise
@@ -330,6 +472,10 @@ class Qemu:
         if self.shell is not None:
             self.shell.close()
             self.shell = None
+
+        if self.log is not None:
+            self.log.close()
+            self.log = None
 
         if self.gdb is not None:
             self.gdb.close()
@@ -361,6 +507,12 @@ class Qemu:
 
     def write_mmio(self, addr: int, value: int, size: int = 4):
         self.gdb.write_mmio(addr, value, size)
+
+    def wait_for_log(self, pattern: str, *, min_level: str | None = None, timeout: float = 5.0) -> LogLine:
+        return self.log.wait_for(pattern, min_level=min_level, timeout=timeout)
+
+    def assert_log_absent(self, pattern: str, *, window: float):
+        self.log.assert_absent(pattern, window=window)
 
 @pytest.fixture
 def qemu():
