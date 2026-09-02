@@ -439,6 +439,10 @@ class Qemu:
             "-object", "monitor-qmp,chardev=qmp0,id=qmp-mon",
             "-gdb", f"tcp::{self.GDB_PORT},server=on,wait=off",
             "-rtc", "clock=vm",
+            "-netdev", "socket,id=net_in,listen=:10001",
+            "-device", "e1000,netdev=net_in,bus=pcie.0,addr=1.0,mac=52:54:00:12:34:56",
+            "-netdev", "socket,id=net_out,listen=:10002",
+            "-device", "e1000,netdev=net_out,bus=pcie.0,addr=2.0,mac=52:54:00:12:34:57",
         ]
 
         if load_kernel:
