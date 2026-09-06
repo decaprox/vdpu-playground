@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<title>vdpu-playground — test history</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
+  canvas { margin-bottom: 3rem; }
+</style>
+</head><body>
+<h1>vdpu-playground — test history</h1>
+<p>1 прогонов. Последний: 7e8efac07445</p>
+
+<canvas id="passfail"></canvas>
+<canvas id="duration"></canvas>
+
+<script>
+const labels = ["2026-09-06T13:50:54"];
+new Chart(document.getElementById('passfail'), {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [
+      { label: 'Passed', data: [11], borderColor: '#22c55e', tension: 0.2 },
+      { label: 'Failed', data: [0], borderColor: '#ef4444', tension: 0.2 }
+    ]
+  },
+  options: { responsive: true, plugins: { title: { display: true, text: 'Passed / Failed по прогонам' } } }
+});
+new Chart(document.getElementById('duration'), {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [{ label: 'Duration (s)', data: [3.786], borderColor: '#3b82f6', tension: 0.2 }]
+  },
+  options: { responsive: true, plugins: { title: { display: true, text: 'Длительность прогона тестов' } } }
+});
+</script>
+</body></html>
