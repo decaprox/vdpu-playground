@@ -103,6 +103,15 @@ jobs:
 
       - name: make firmware
         run: make firmware
+        env:
+          # Cached SDK dir survives between runs, but the CMake user package
+          # registry entry created by `setup.sh -c` lives under ~/.cmake/,
+          # which is NOT part of the cache and is empty on a fresh runner
+          # even on a cache hit. Setting these explicitly bypasses the
+          # registry lookup entirely, so it works the same whether the SDK
+          # cache hit or missed.
+          ZEPHYR_TOOLCHAIN_VARIANT: zephyr
+          ZEPHYR_SDK_INSTALL_DIR: ${{ github.workspace }}/environment/zephyr-sdk-0.16.8
 
       - name: make test
         run: |
@@ -269,16 +278,16 @@ jobs:
           if last_testcases_sorted:
               rows_html = "\n".join(render_testcase_row(tc) for tc in last_testcases_sorted)
               testcase_table = f"""
-              <h2>Тесты последнего прогона ({html.escape(runs[-1]['commit_sha'][:12])})</h2>
+              <h2>Latest run tests ({html.escape(runs[-1]['commit_sha'][:12])})</h2>
               <table>
-                <thead><tr><th>Тест</th><th>Статус</th><th>Время</th></tr></thead>
+                <thead><tr><th>Test</th><th>Status</th><th>Duration</th></tr></thead>
                 <tbody>
                 {rows_html}
                 </tbody>
               </table>
               """
           else:
-              testcase_table = "<p><em>Для последнего прогона нет пер-тестовых данных (запись сделана до добавления этой таблицы).</em></p>"
+              testcase_table = "<p><em>No per-test data for the latest run (recorded before this table was added).</em></p>"
 
           html_doc = f"""<!DOCTYPE html>
           <html><head>
@@ -294,7 +303,7 @@ jobs:
           </style>
           </head><body>
           <h1>vdpu-playground — test history</h1>
-          <p>{len(runs)} прогонов. Последний: {html.escape(runs[-1]['commit_sha'][:12]) if runs else 'n/a'}</p>
+          <p>{len(runs)} runs. Latest: {html.escape(runs[-1]['commit_sha'][:12]) if runs else 'n/a'}</p>
 
           <canvas id="passfail"></canvas>
           <canvas id="duration"></canvas>
@@ -312,7 +321,7 @@ jobs:
                 {{ label: 'Failed', data: {json.dumps(failed)}, borderColor: '#ef4444', tension: 0.2 }}
               ]
             }},
-            options: {{ responsive: true, plugins: {{ title: {{ display: true, text: 'Passed / Failed по прогонам' }} }} }}
+            options: {{ responsive: true, plugins: {{ title: {{ display: true, text: 'Passed / Failed by run' }} }} }}
           }});
           new Chart(document.getElementById('duration'), {{
             type: 'line',
@@ -320,7 +329,7 @@ jobs:
               labels: labels,
               datasets: [{{ label: 'Duration (s)', data: {json.dumps(duration)}, borderColor: '#3b82f6', tension: 0.2 }}]
             }},
-            options: {{ responsive: true, plugins: {{ title: {{ display: true, text: 'Длительность прогона тестов' }} }} }}
+            options: {{ responsive: true, plugins: {{ title: {{ display: true, text: 'Test run duration' }} }} }}
           }});
           </script>
           </body></html>
