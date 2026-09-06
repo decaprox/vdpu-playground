@@ -1,0 +1,77 @@
+{
+  "commit_sha": "c129006443c575c4b59c00773c09551328814219",
+  "timestamp": "2026-09-06T16:06:50.205194+00:00",
+  "tests": 11,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "time_seconds": 3.917,
+  "testcases": [
+    {
+      "classname": "test_basic",
+      "name": "test_hello",
+      "time_seconds": 0.263,
+      "status": "passed"
+    },
+    {
+      "classname": "test_basic",
+      "name": "test_hello_log",
+      "time_seconds": 1.158,
+      "status": "passed"
+    },
+    {
+      "classname": "test_fta",
+      "name": "test_fta_present",
+      "time_seconds": 0.107,
+      "status": "passed"
+    },
+    {
+      "classname": "test_fta",
+      "name": "test_fta_insert_flow_id_not_established",
+      "time_seconds": 0.149,
+      "status": "passed"
+    },
+    {
+      "classname": "test_fta",
+      "name": "test_fta_insert_flow_id_established",
+      "time_seconds": 0.236,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_fta_mmio_read_write_32[152043528]",
+      "time_seconds": 0.316,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_fta_mmio_read_write_32[152043532]",
+      "time_seconds": 0.315,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_fta_mmio_read_write_read_only_32[152043524]",
+      "time_seconds": 0.315,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_fta_mmio_desc_addr_lo_hi_independent",
+      "time_seconds": 0.476,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_fta_mmio_table_size_within_capacity",
+      "time_seconds": 0.233,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_fta_mmio_ctrl_reset_bit_self_clears",
+      "time_seconds": 0.311,
+      "status": "passed"
+    }
+  ]
+}
