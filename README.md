@@ -1,3 +1,5 @@
+[![vdpu-playground CI][ci-badge]][ci-link]
+
 # About the Project
 
 This is the main repository for my experiments with a virtual DPU and firmware for it.
@@ -82,3 +84,6 @@ Build & test:
   all                prepare + firmware + test
   clean-qemu-build   Remove the qemu-vdpu build directory
 ```
+
+[ci-badge]: https://github.com/decaprox/vdpu-playground/actions/workflows/test.yml/badge.svg
+[ci-link]: https://github.com/decaprox/vdpu-playground/actions/workflows/test.yml

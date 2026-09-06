@@ -1,0 +1,264 @@
+name: vdpu-playground CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            git \
+            cmake \
+            ninja-build \
+            gperf \
+            ccache \
+            dfu-util \
+            device-tree-compiler \
+            wget \
+            pkg-config \
+            python3 \
+            python3-dev \
+            python3-pip \
+            python3-venv \
+            python3-tk \
+            xz-utils \
+            file \
+            make \
+            gcc \
+            gcc-multilib \
+            g++-multilib \
+            libsdl2-dev \
+            libmagic1 \
+            libglib2.0-dev \
+            libpixman-1-dev \
+            libfdt-dev \
+            libslirp-dev \
+            libcap-ng-dev \
+            libaio-dev \
+            zlib1g-dev
+
+      - name: Cache Zephyr SDK
+        id: cache-sdk
+        uses: actions/cache@v4
+        with:
+          path: environment/zephyr-sdk-0.16.8
+          key: zephyr-sdk-0.16.8-${{ runner.os }}
+
+      - name: make sdk
+        run: make sdk
+
+      - name: Cache west workspace
+        id: cache-west
+        uses: actions/cache@v4
+        with:
+          path: build/zephyr_workspace
+          key: west-workspace-${{ hashFiles('vdpu-firmware/west.yml') }}
+          restore-keys: |
+            west-workspace-
+
+      - name: make venv zephyr
+        run: |
+          make venv
+          make zephyr
+
+      - name: Get qemu-vdpu submodule SHA
+        id: qemu-sha
+        run: echo "sha=$(git -C qemu-vdpu rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache QEMU build + install dirs
+        id: cache-qemu
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/qemu-vdpu
+            environment/qemu-vdpu
+          key: qemu-${{ steps.qemu-sha.outputs.sha }}-${{ runner.os }}
+          restore-keys: |
+            qemu-
+
+      - name: make qemu
+        if: steps.cache-qemu.outputs.cache-hit != 'true'
+        run: make qemu
+
+      - name: make firmware
+        run: make firmware
+
+      - name: make test
+        run: make test
+        env:
+          PYTEST_ADDOPTS: "--junitxml=${{ github.workspace }}/test-results.xml"
+
+      - name: Upload JUnit XML
+        if: always()   # нужен результат даже когда тесты упали — иначе
+                        # dashboard никогда не увидит failed-прогоны
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-results
+          path: test-results.xml
+          retention-days: 5
+
+  dashboard:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download JUnit XML
+        uses: actions/download-artifact@v4
+        with:
+          name: junit-results
+        continue-on-error: true
+
+      - name: Parse JUnit XML into compact JSON
+        if: hashFiles('test-results.xml') != ''
+        run: |
+          python3 - <<'PYEOF'
+          import xml.etree.ElementTree as ET
+          import json, os, datetime
+
+          tree = ET.parse("test-results.xml")
+          root = tree.getroot()
+          suite = root if root.tag == "testsuite" else root.find("testsuite")
+
+          data = {
+              "commit_sha": os.environ["GITHUB_SHA"],
+              "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "tests": int(suite.get("tests", 0)),
+              "failures": int(suite.get("failures", 0)),
+              "errors": int(suite.get("errors", 0)),
+              "skipped": int(suite.get("skipped", 0)),
+              "time_seconds": float(suite.get("time", 0)),
+          }
+
+          os.makedirs("data", exist_ok=True)
+          fname = f"data/{data['commit_sha'][:12]}-{int(datetime.datetime.now().timestamp())}.json"
+          with open(fname, "w") as f:
+              json.dump(data, f, indent=2)
+          print(f"wrote {fname}: {data}")
+          PYEOF
+
+      - name: Commit result JSON to gh-data branch
+        if: hashFiles('test-results.xml') != ''
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin gh-data 2>/dev/null || true
+          if git show-ref --verify --quiet refs/remotes/origin/gh-data; then
+            git checkout gh-data
+          else
+            git checkout --orphan gh-data
+            git rm -rf . > /dev/null 2>&1 || true
+          fi
+
+          mkdir -p data
+          git add data/*.json 2>/dev/null || true
+          git commit -m "test results: ${GITHUB_SHA:0:12}" || echo "nothing to commit"
+
+          for i in 1 2 3 4 5; do
+            git push origin gh-data && break
+            echo "push rejected, retrying with rebase (attempt $i)"
+            git fetch origin gh-data
+            git rebase origin/gh-data
+            sleep $((RANDOM % 5 + 1))
+          done
+
+      - name: Build dashboard HTML from all runs in gh-data
+        run: |
+          set -e
+          git fetch origin gh-data
+          git worktree add /tmp/gh-data-checkout origin/gh-data
+
+          python3 - <<'PYEOF'
+          import json, glob, os
+
+          runs = []
+          for path in sorted(glob.glob("/tmp/gh-data-checkout/data/*.json")):
+              with open(path) as f:
+                  runs.append(json.load(f))
+
+          labels = [r["timestamp"][:19] for r in runs]
+          passed = [r["tests"] - r["failures"] - r["errors"] - r["skipped"] for r in runs]
+          failed = [r["failures"] + r["errors"] for r in runs]
+          duration = [r["time_seconds"] for r in runs]
+
+          html = f"""<!DOCTYPE html>
+          <html><head>
+          <meta charset="utf-8">
+          <title>vdpu-playground — test history</title>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+          <style>
+            body {{ font-family: system-ui, sans-serif; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }}
+            canvas {{ margin-bottom: 3rem; }}
+          </style>
+          </head><body>
+          <h1>vdpu-playground — test history</h1>
+          <p>{len(runs)} прогонов. Последний: {runs[-1]['commit_sha'][:12] if runs else 'n/a'}</p>
+
+          <canvas id="passfail"></canvas>
+          <canvas id="duration"></canvas>
+
+          <script>
+          const labels = {json.dumps(labels)};
+          new Chart(document.getElementById('passfail'), {{
+            type: 'line',
+            data: {{
+              labels: labels,
+              datasets: [
+                {{ label: 'Passed', data: {json.dumps(passed)}, borderColor: '#22c55e', tension: 0.2 }},
+                {{ label: 'Failed', data: {json.dumps(failed)}, borderColor: '#ef4444', tension: 0.2 }}
+              ]
+            }},
+            options: {{ responsive: true, plugins: {{ title: {{ display: true, text: 'Passed / Failed по прогонам' }} }} }}
+          }});
+          new Chart(document.getElementById('duration'), {{
+            type: 'line',
+            data: {{
+              labels: labels,
+              datasets: [{{ label: 'Duration (s)', data: {json.dumps(duration)}, borderColor: '#3b82f6', tension: 0.2 }}]
+            }},
+            options: {{ responsive: true, plugins: {{ title: {{ display: true, text: 'Длительность прогона тестов' }} }} }}
+          }});
+          </script>
+          </body></html>
+          """
+
+          os.makedirs("/tmp/dashboard-out", exist_ok=True)
+          with open("/tmp/dashboard-out/index.html", "w") as f:
+              f.write(html)
+          PYEOF
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: /tmp/dashboard-out
+          publish_branch: gh-pages
