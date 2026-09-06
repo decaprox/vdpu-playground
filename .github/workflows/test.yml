@@ -105,13 +105,19 @@ jobs:
         run: make firmware
 
       - name: make test
-        run: make test
+        run: |
+          source environment/venv/bin/activate
+          make test
         env:
           PYTEST_ADDOPTS: "--junitxml=${{ github.workspace }}/test-results.xml"
+        # `make test` doesn't activate venv on its own (unlike the firmware/zephyr
+        # targets, which do this explicitly) — per Captain's decision this isn't
+        # fixed in the Makefile, so we activate it here in the workflow instead,
+        # right before invoking make
 
       - name: Upload JUnit XML
-        if: always()   # нужен результат даже когда тесты упали — иначе
-                        # dashboard никогда не увидит failed-прогоны
+        if: always()   # need the result even when tests fail — otherwise
+                        # the dashboard would never see failed runs
         uses: actions/upload-artifact@v4
         with:
           name: junit-results
@@ -147,6 +153,28 @@ jobs:
           root = tree.getroot()
           suite = root if root.tag == "testsuite" else root.find("testsuite")
 
+          # A testcase status: successful (passed) unless there is another
+          # result element underneath it — failure/error/skipped
+          testcases = []
+          for tc in suite.findall("testcase"):
+              if tc.find("failure") is not None:
+                  status = "failed"
+              elif tc.find("error") is not None:
+                  status = "error"
+              elif tc.find("skipped") is not None:
+                  status = "skipped"
+              else:
+                  status = "passed"
+              testcases.append({
+                  "classname": tc.get("classname", ""),
+                  "name": tc.get("name", ""),
+                  "time_seconds": float(tc.get("time", 0)),
+                  "status": status,
+              })
+          # Failure/error tracebacks are intentionally not stored — the table
+          # only shows the latest run, and the full text would bloat gh-data
+          # for no benefit; can be added separately later if needed
+
           data = {
               "commit_sha": os.environ["GITHUB_SHA"],
               "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -155,6 +183,7 @@ jobs:
               "errors": int(suite.get("errors", 0)),
               "skipped": int(suite.get("skipped", 0)),
               "time_seconds": float(suite.get("time", 0)),
+              "testcases": testcases,
           }
 
           os.makedirs("data", exist_ok=True)
@@ -198,19 +227,60 @@ jobs:
           git worktree add /tmp/gh-data-checkout origin/gh-data
 
           python3 - <<'PYEOF'
-          import json, glob, os
+          import json, glob, os, html
 
           runs = []
-          for path in sorted(glob.glob("/tmp/gh-data-checkout/data/*.json")):
+          for path in glob.glob("/tmp/gh-data-checkout/data/*.json"):
               with open(path) as f:
                   runs.append(json.load(f))
+          # Sorting by filename is unreliable: filenames are built as
+          # {sha[:12]}-{unix_ts}.json, and SHA prefixes aren't lexicographically
+          # monotonic. The ISO 8601 timestamp inside the JSON sorts correctly
+          # lexicographically by construction — sort on that instead.
+          runs.sort(key=lambda r: r["timestamp"])
 
           labels = [r["timestamp"][:19] for r in runs]
           passed = [r["tests"] - r["failures"] - r["errors"] - r["skipped"] for r in runs]
           failed = [r["failures"] + r["errors"] for r in runs]
           duration = [r["time_seconds"] for r in runs]
 
-          html = f"""<!DOCTYPE html>
+          # `testcases` is absent from records written before this change —
+          # safe default in case gh-data has a mixed history
+          last_testcases = runs[-1].get("testcases", []) if runs else []
+          last_testcases_sorted = sorted(last_testcases, key=lambda tc: (tc["classname"], tc["name"]))
+
+          status_colors = {
+              "passed": "#22c55e",
+              "failed": "#ef4444",
+              "error": "#ef4444",
+              "skipped": "#eab308",
+          }
+
+          def render_testcase_row(tc):
+              color = status_colors.get(tc["status"], "#6b7280")
+              full_name = html.escape(f"{tc['classname']}::{tc['name']}")
+              status = html.escape(tc["status"])
+              return (
+                  f'<tr><td>{full_name}</td>'
+                  f'<td style="color: {color}; font-weight: 600;">{status}</td>'
+                  f'<td style="text-align: right;">{tc["time_seconds"]:.3f}s</td></tr>'
+              )
+
+          if last_testcases_sorted:
+              rows_html = "\n".join(render_testcase_row(tc) for tc in last_testcases_sorted)
+              testcase_table = f"""
+              <h2>Тесты последнего прогона ({html.escape(runs[-1]['commit_sha'][:12])})</h2>
+              <table>
+                <thead><tr><th>Тест</th><th>Статус</th><th>Время</th></tr></thead>
+                <tbody>
+                {rows_html}
+                </tbody>
+              </table>
+              """
+          else:
+              testcase_table = "<p><em>Для последнего прогона нет пер-тестовых данных (запись сделана до добавления этой таблицы).</em></p>"
+
+          html_doc = f"""<!DOCTYPE html>
           <html><head>
           <meta charset="utf-8">
           <title>vdpu-playground — test history</title>
@@ -218,13 +288,18 @@ jobs:
           <style>
             body {{ font-family: system-ui, sans-serif; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }}
             canvas {{ margin-bottom: 3rem; }}
+            table {{ width: 100%; border-collapse: collapse; margin-bottom: 3rem; }}
+            th, td {{ text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #e5e7eb; }}
+            th {{ font-weight: 600; }}
           </style>
           </head><body>
           <h1>vdpu-playground — test history</h1>
-          <p>{len(runs)} прогонов. Последний: {runs[-1]['commit_sha'][:12] if runs else 'n/a'}</p>
+          <p>{len(runs)} прогонов. Последний: {html.escape(runs[-1]['commit_sha'][:12]) if runs else 'n/a'}</p>
 
           <canvas id="passfail"></canvas>
           <canvas id="duration"></canvas>
+
+          {testcase_table}
 
           <script>
           const labels = {json.dumps(labels)};
@@ -253,7 +328,7 @@ jobs:
 
           os.makedirs("/tmp/dashboard-out", exist_ok=True)
           with open("/tmp/dashboard-out/index.html", "w") as f:
-              f.write(html)
+              f.write(html_doc)
           PYEOF
 
       - name: Deploy to gh-pages
