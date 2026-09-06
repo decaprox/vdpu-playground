@@ -115,7 +115,8 @@ firmware: ## west build -b $(BOARD) -p always (pristine build)
 		west build -b $(BOARD) -d $(APP_BUILD_DIR) $(APP) -p always -- -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
 test: ## cd tests && pytest
-	cd tests &&
+	source $(VENV)/bin/activate &&
+		cd tests &&
 		pytest
 
 all: prepare firmware test ## prepare + firmware + test
