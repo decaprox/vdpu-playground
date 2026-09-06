@@ -1,0 +1,233 @@
+{
+  "commit_sha": "c35dcd23434d7e3fb1f8ee40eab5a0c8c3a18e20",
+  "timestamp": "2026-09-06T19:05:55.574370+00:00",
+  "tests": 37,
+  "failures": 1,
+  "errors": 0,
+  "skipped": 0,
+  "time_seconds": 12.379,
+  "testcases": [
+    {
+      "classname": "test_basic",
+      "name": "test_hello",
+      "time_seconds": 0.208,
+      "status": "failed"
+    },
+    {
+      "classname": "test_basic",
+      "name": "test_hello_log",
+      "time_seconds": 1.151,
+      "status": "passed"
+    },
+    {
+      "classname": "test_dpi",
+      "name": "test_dpi_present",
+      "time_seconds": 0.106,
+      "status": "passed"
+    },
+    {
+      "classname": "test_dpi",
+      "name": "test_dpi_scan_matched",
+      "time_seconds": 0.148,
+      "status": "passed"
+    },
+    {
+      "classname": "test_dpi",
+      "name": "test_dpi_scan_pending",
+      "time_seconds": 0.149,
+      "status": "passed"
+    },
+    {
+      "classname": "test_dpi",
+      "name": "test_dpi_scan_repeating_prefix",
+      "time_seconds": 0.147,
+      "status": "passed"
+    },
+    {
+      "classname": "test_dpi",
+      "name": "test_dpi_scan_bytes_scanned_on_match",
+      "time_seconds": 0.148,
+      "status": "passed"
+    },
+    {
+      "classname": "test_fta",
+      "name": "test_fta_present",
+      "time_seconds": 0.106,
+      "status": "passed"
+    },
+    {
+      "classname": "test_fta",
+      "name": "test_fta_insert_flow_id_not_established",
+      "time_seconds": 0.148,
+      "status": "passed"
+    },
+    {
+      "classname": "test_fta",
+      "name": "test_fta_insert_flow_id_established",
+      "time_seconds": 0.231,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_fta_mmio_read_write_32[152043528]",
+      "time_seconds": 0.31,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_fta_mmio_read_write_32[152043532]",
+      "time_seconds": 0.311,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_fta_mmio_read_write_read_only_32[152043524]",
+      "time_seconds": 0.311,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_fta_mmio_desc_addr_lo_hi_independent",
+      "time_seconds": 0.474,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_fta_mmio_table_size_within_capacity",
+      "time_seconds": 0.228,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_fta_mmio_ctrl_reset_bit_self_clears",
+      "time_seconds": 0.311,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_read_write_32[152047616]",
+      "time_seconds": 0.31,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_read_write_32[152047620]",
+      "time_seconds": 0.312,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_read_write_32[152047624]",
+      "time_seconds": 0.31,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_read_write_32[152047628]",
+      "time_seconds": 0.31,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_read_write_32[152047632]",
+      "time_seconds": 0.31,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_read_write_32[152047636]",
+      "time_seconds": 0.311,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_read_write_32[152047640]",
+      "time_seconds": 0.31,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_read_write_32[152047644]",
+      "time_seconds": 0.31,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_read_write_32[152047648]",
+      "time_seconds": 0.31,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_read_write_32[152047652]",
+      "time_seconds": 0.31,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_read_write_read_only_32[152047664]",
+      "time_seconds": 0.393,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_lo_hi_independent[152047616-152047620]",
+      "time_seconds": 0.474,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_lo_hi_independent[152047632-152047636]",
+      "time_seconds": 0.475,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_lo_hi_independent[152047640-152047644]",
+      "time_seconds": 0.474,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_lo_hi_independent[152047648-152047652]",
+      "time_seconds": 0.475,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_max_payload_len_matches_device",
+      "time_seconds": 0.229,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_ctrl_start_bit_self_clears",
+      "time_seconds": 0.31,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_ctrl_reset_bit_self_clears",
+      "time_seconds": 0.31,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_status_busy_bit_read_only",
+      "time_seconds": 0.393,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_status_done_error_write_1_to_clear",
+      "time_seconds": 0.476,
+      "status": "passed"
+    },
+    {
+      "classname": "test_mmio",
+      "name": "test_vdpu_dpi_mmio_reset_clears_config_registers",
+      "time_seconds": 0.72,
+      "status": "passed"
+    }
+  ]
+}
