@@ -12,22 +12,40 @@
 </style>
 </head><body>
 <h1>vdpu-playground — test history</h1>
-<p>1 прогонов. Последний: 7e8efac07445</p>
+<p>2 прогонов. Последний: c129006443c5</p>
 
 <canvas id="passfail"></canvas>
 <canvas id="duration"></canvas>
 
-<p><em>Для последнего прогона нет пер-тестовых данных (запись сделана до добавления этой таблицы).</em></p>
+
+    <h2>Тесты последнего прогона (c129006443c5)</h2>
+    <table>
+      <thead><tr><th>Тест</th><th>Статус</th><th>Время</th></tr></thead>
+      <tbody>
+      <tr><td>test_basic::test_hello</td><td style="color: #22c55e; font-weight: 600;">passed</td><td style="text-align: right;">0.263s</td></tr>
+<tr><td>test_basic::test_hello_log</td><td style="color: #22c55e; font-weight: 600;">passed</td><td style="text-align: right;">1.158s</td></tr>
+<tr><td>test_fta::test_fta_insert_flow_id_established</td><td style="color: #22c55e; font-weight: 600;">passed</td><td style="text-align: right;">0.236s</td></tr>
+<tr><td>test_fta::test_fta_insert_flow_id_not_established</td><td style="color: #22c55e; font-weight: 600;">passed</td><td style="text-align: right;">0.149s</td></tr>
+<tr><td>test_fta::test_fta_present</td><td style="color: #22c55e; font-weight: 600;">passed</td><td style="text-align: right;">0.107s</td></tr>
+<tr><td>test_mmio::test_vdpu_fta_mmio_ctrl_reset_bit_self_clears</td><td style="color: #22c55e; font-weight: 600;">passed</td><td style="text-align: right;">0.311s</td></tr>
+<tr><td>test_mmio::test_vdpu_fta_mmio_desc_addr_lo_hi_independent</td><td style="color: #22c55e; font-weight: 600;">passed</td><td style="text-align: right;">0.476s</td></tr>
+<tr><td>test_mmio::test_vdpu_fta_mmio_read_write_32[152043528]</td><td style="color: #22c55e; font-weight: 600;">passed</td><td style="text-align: right;">0.316s</td></tr>
+<tr><td>test_mmio::test_vdpu_fta_mmio_read_write_32[152043532]</td><td style="color: #22c55e; font-weight: 600;">passed</td><td style="text-align: right;">0.315s</td></tr>
+<tr><td>test_mmio::test_vdpu_fta_mmio_read_write_read_only_32[152043524]</td><td style="color: #22c55e; font-weight: 600;">passed</td><td style="text-align: right;">0.315s</td></tr>
+<tr><td>test_mmio::test_vdpu_fta_mmio_table_size_within_capacity</td><td style="color: #22c55e; font-weight: 600;">passed</td><td style="text-align: right;">0.233s</td></tr>
+      </tbody>
+    </table>
+    
 
 <script>
-const labels = ["2026-09-06T13:50:54"];
+const labels = ["2026-09-06T13:50:54", "2026-09-06T16:06:50"];
 new Chart(document.getElementById('passfail'), {
   type: 'line',
   data: {
     labels: labels,
     datasets: [
-      { label: 'Passed', data: [11], borderColor: '#22c55e', tension: 0.2 },
-      { label: 'Failed', data: [0], borderColor: '#ef4444', tension: 0.2 }
+      { label: 'Passed', data: [11, 11], borderColor: '#22c55e', tension: 0.2 },
+      { label: 'Failed', data: [0, 0], borderColor: '#ef4444', tension: 0.2 }
     ]
   },
   options: { responsive: true, plugins: { title: { display: true, text: 'Passed / Failed по прогонам' } } }
@@ -36,7 +54,7 @@ new Chart(document.getElementById('duration'), {
   type: 'line',
   data: {
     labels: labels,
-    datasets: [{ label: 'Duration (s)', data: [3.786], borderColor: '#3b82f6', tension: 0.2 }]
+    datasets: [{ label: 'Duration (s)', data: [3.786, 3.917], borderColor: '#3b82f6', tension: 0.2 }]
   },
   options: { responsive: true, plugins: { title: { display: true, text: 'Длительность прогона тестов' } } }
 });
